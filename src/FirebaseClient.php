@@ -1,12 +1,14 @@
 <?php
 
-declare(strict_types = 1);
+declare(strict_types=1);
 
 namespace McMatters\FirebaseApi;
 
-use GuzzleHttp\Client;
-use const null, true;
-use function json_decode;
+use McMatters\Ticl\Client;
+
+use McMatters\Ticl\Enums\HttpStatusCode;
+
+use const null;
 
 /**
  * Class FirebaseClient
@@ -16,122 +18,139 @@ use function json_decode;
 class FirebaseClient
 {
     /**
-     * @var Client
+     * @var \McMatters\Ticl\Client
      */
     protected $httpClient;
 
     /**
-     * FirebaseClient constructor.
+     * @var string
      */
-    public function __construct()
+    protected $database;
+
+    /**
+     * @var string
+     */
+    protected $path;
+
+    /**
+     * FirebaseClient constructor.
+     *
+     * @param string|null $database
+     * @param string|null $path
+     */
+    public function __construct(?string $database = null, ?string $path = null)
     {
         $this->httpClient = new Client();
+        $this->database = $database;
+        $this->path = $path;
     }
 
     /**
-     * @param string $database
-     * @param string $path
      * @param array $filters
+     * @param string|null $database
+     * @param string|null $path
      *
      * @return array|bool
-     * @throws \GuzzleHttp\Exception\GuzzleException
-     * @throws \RuntimeException
      */
-    public function get(string $database, string $path, array $filters = [])
-    {
-        return $this->request($database, $path, 'GET', $filters);
+    public function get(
+        array $filters = [],
+        ?string $database = null,
+        ?string $path = null
+    ) {
+        return $this->request('GET', $database, $path, $filters);
     }
 
     /**
-     * @param string $database
-     * @param string $path
      * @param array $data
      * @param array $uriParameters
+     * @param string|null $database
+     * @param string|null $path
      *
      * @return array|bool
-     * @throws \GuzzleHttp\Exception\GuzzleException
-     * @throws \RuntimeException
      */
-    public function save(string $database, string $path, array $data, array $uriParameters = [])
-    {
-        return $this->request($database, $path, 'PUT', $uriParameters, $data);
+    public function save(
+        array $data,
+        array $uriParameters = [],
+        ?string $database = null,
+        ?string $path = null
+    ) {
+        return $this->request('PUT', $database, $path, $uriParameters, $data);
     }
 
     /**
-     * @param string $database
-     * @param string $path
      * @param array $data
      * @param array $uriParameters
+     * @param string|null $database
+     * @param string|null $path
      *
      * @return array|bool
-     * @throws \GuzzleHttp\Exception\GuzzleException
-     * @throws \RuntimeException
      */
     public function update(
-        string $database,
-        string $path,
         array $data,
-        array $uriParameters = []
+        array $uriParameters = [],
+        ?string $database = null,
+        ?string $path = null
     ) {
-        return $this->request($database, $path, 'PATCH', $uriParameters, $data);
+        return $this->request('PATCH', $database, $path, $uriParameters, $data);
     }
 
     /**
-     * @param string $database
-     * @param string $path
      * @param array $uriParameters
+     * @param string|null $database
+     * @param string|null $path
      *
      * @return array|bool
-     * @throws \GuzzleHttp\Exception\GuzzleException
-     * @throws \RuntimeException
      */
     public function delete(
-        string $database,
-        string $path,
-        array $uriParameters = []
+        array $uriParameters = [],
+        ?string $database = null,
+        ?string $path = null
     ) {
         return $this->request($database, $path, 'DELETE', $uriParameters);
     }
 
     /**
-     * @param string $database
-     * @param string $path
      * @param string $method
+     * @param string|null $database
+     * @param string|null $path
      * @param array $query
      * @param array $data
      *
      * @return bool|array
-     * @throws \GuzzleHttp\Exception\GuzzleException
-     * @throws \RuntimeException
      */
     protected function request(
-        string $database,
-        string $path,
         string $method,
+        ?string $database = null,
+        ?string $path = null,
         array $query = [],
         array $data = []
     ) {
-        $response = $this->httpClient->request(
-            $method,
+        /** @var \McMatters\Ticl\Http\Response $response */
+        $response = $this->httpClient->{$method}(
             $this->getUrl($database, $path),
             ['query' => $query, 'json' => $data]
         );
 
         if ('silent' === ($query['print'] ?? null)) {
-            return $response->getStatusCode() === 204;
+            return $response->getStatusCode() === HttpStatusCode::NO_CONTENT;
         }
 
-        return json_decode($response->getBody()->getContents(), true);
+        return $response->json();
     }
 
     /**
      * @param string $database
-     * @param string|null $path
+     * @param string $path
      *
      * @return string
      */
-    protected function getUrl(string $database, string $path): string
-    {
+    protected function getUrl(
+        ?string $database = null,
+        ?string $path = null
+    ): string {
+        $database = $database ?? $this->database;
+        $path = $path ?? $this->path;
+
         return "https://{$database}.firebaseio.com/{$path}.json";
     }
 }
